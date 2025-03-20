@@ -71,8 +71,8 @@ UPDATE_ADDRESS, DB_ADDRESS, XKCD_URL, XKCD_CONCURRENCY, WORDS_ADDRESS.
 
 ## Материалы для ознакомления
 
-- [Signals](https://gobyexample.com/signals
-- [Exit](https://gobyexample.com/exit
+- [Signals](https://gobyexample.com/signals)
+- [Exit](https://gobyexample.com/exit)
 - [Worker Pool](https://gobyexample.com/worker-pools) 
 - [Context](https://golangbot.com/context-timeout-cancellation/)
 - [Migrate](https://github.com/golang-migrate/migrate/blob/master/GETTING_STARTED.md)
