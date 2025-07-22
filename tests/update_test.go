@@ -1,4 +1,4 @@
-package words_test
+package api_test
 
 import (
 	"encoding/json"
@@ -9,32 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
-
-const address = "http://localhost:28080"
-
-var client = http.Client{
-	Timeout: 5 * time.Minute,
-}
-
-func TestPreflight(t *testing.T) {
-	require.Equal(t, true, true)
-}
-
-type PingResponse struct {
-	Replies map[string]string `json:"replies"`
-}
-
-func TestPing(t *testing.T) {
-	resp, err := client.Get(address + "/api/ping")
-	require.NoError(t, err, "cannot ping")
-	defer resp.Body.Close()
-	require.Equal(t, http.StatusOK, resp.StatusCode, "wrong status")
-
-	var reply PingResponse
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&reply))
-	require.Equal(t, "ok", reply.Replies["words"], "no words running")
-	require.Equal(t, "ok", reply.Replies["update"], "no db running")
-}
 
 type UpdateStats struct {
 	WordsTotal    int `json:"words_total"`
