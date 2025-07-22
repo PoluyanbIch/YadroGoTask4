@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"testing"
@@ -29,13 +30,13 @@ func prepare(t *testing.T) {
 	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	st := stats(t)
-	require.Equal(t, 0, st.ComicsFetched)
-	require.True(t, st.ComicsTotal > 3000, "there are more than 3000 comics in XKCD")
-	require.Equal(t, 0, st.WordsTotal)
-	require.Equal(t, 0, st.WordsUnique)
-
-	require.Equal(t, "idle", status(t))
+	updateStats := stats(t)
+	require.Equal(t, 0, updateStats.ComicsFetched)
+	require.True(t, updateStats.ComicsTotal > 3000, "there are more than 3000 comics in XKCD")
+	require.Equal(t, 0, updateStats.WordsTotal)
+	require.Equal(t, 0, updateStats.WordsUnique)
+	updateStatus, err := status()
+	require.Equal(t, "idle", updateStatus, err)
 }
 
 func TestEmptyDB(t *testing.T) {
@@ -46,22 +47,26 @@ func TestUpdate(t *testing.T) {
 	prepare(t)
 	var wg sync.WaitGroup
 	wg.Add(3)
+	var err1, err2, err3 error
 	var res1, res2 int
 	var res3 string
 	go func() {
-		res1 = update(t)
+		res1, err1 = update()
 		wg.Done()
 	}()
 	go func() {
-		res2 = update(t)
+		res2, err2 = update()
 		wg.Done()
 	}()
 	go func() {
 		time.Sleep(1 * time.Second)
-		res3 = status(t)
+		res3, err3 = status()
 		wg.Done()
 	}()
 	wg.Wait()
+	require.NoError(t, err1, "error from update")
+	require.NoError(t, err2, "error from update")
+	require.NoError(t, err3, "erorr from status")
 	require.True(t,
 		res1 == http.StatusOK && res2 == http.StatusAccepted ||
 			res2 == http.StatusOK && res1 == http.StatusAccepted,
@@ -77,23 +82,35 @@ func TestUpdate(t *testing.T) {
 	prepare(t)
 }
 
-func update(t *testing.T) int {
+// this must not contain t because it runs in a waited goroutine
+func update() (int, error) {
 	req, err := http.NewRequest(http.MethodPost, address+"/api/db/update", nil)
-	require.NoError(t, err, "cannot make request")
+	if err != nil {
+		return 0, err
+	}
 	resp, err := client.Do(req)
-	require.NoError(t, err, "could not send update command")
-	defer resp.Body.Close()
-	return resp.StatusCode
+	if err != nil {
+		return 0, err
+	}
+	resp.Body.Close()
+	return resp.StatusCode, nil
 }
 
-func status(t *testing.T) string {
+// this must not contain t because it runs in a waited goroutine
+func status() (string, error) {
 	resp, err := client.Get(address + "/api/db/status")
-	require.NoError(t, err, "could not get status")
+	if err != nil {
+		return "", err
+	}
 	defer resp.Body.Close()
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	if http.StatusOK != resp.StatusCode {
+		return "", fmt.Errorf("http status: %v", resp.Status)
+	}
 	var status UpdateStatus
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&status), "cannot decode")
-	return status.Status
+	if err = json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return "", fmt.Errorf("could not decode: %v", err)
+	}
+	return status.Status, nil
 }
 
 func stats(t *testing.T) UpdateStats {

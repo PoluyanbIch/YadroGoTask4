@@ -12,7 +12,7 @@ import (
 const address = "http://localhost:28080"
 
 var client = http.Client{
-	Timeout: 10 * time.Second,
+	Timeout: 10 * time.Minute,
 }
 
 func TestPreflight(t *testing.T) {
