@@ -73,7 +73,7 @@ Mикросервис update должен при запуске создават
 3. Сервис update конфигурируeтся через cleanenv пакет и должeн уметь запускаться как с config.yaml
 файлом через флаг -config, так и через переменные среды, в этом задании -
 UPDATE_ADDRESS, DB_ADDRESS, XKCD_URL, XKCD_CONCURRENCY, WORDS_ADDRESS.
-4. Используется golang 1.24+, slog логгер.
+4. Используется golang 1.25+, slog логгер.
 
 ## Материалы для ознакомления
 
