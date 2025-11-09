@@ -2,10 +2,11 @@ package xkcd
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"yadro.com/course/update/core"
@@ -29,9 +30,55 @@ func NewClient(url string, timeout time.Duration, log *slog.Logger) (*Client, er
 }
 
 func (c Client) Get(ctx context.Context, id int) (core.XKCDInfo, error) {
-	return core.XKCDInfo{}, errors.New("implement me")
+	url := c.url + "/" + strconv.Itoa(id) + "/info.0.json"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return core.XKCDInfo{}, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return core.XKCDInfo{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return core.XKCDInfo{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+	var res struct {
+		ID          int    `json:"num"`
+		URL         string `json:"img"`
+		Title       string `json:"title"`
+		Description string `json:"transcript"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return core.XKCDInfo{}, err
+	}
+	return core.XKCDInfo{
+		ID:          res.ID,
+		URL:         res.URL,
+		Title:       res.Title,
+		Description: res.Description,
+	}, nil
 }
 
 func (c Client) LastID(ctx context.Context) (int, error) {
-	return 0, errors.New("implement me")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+"/info.0.json", nil)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	var res struct {
+		Num int `json:"num"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return 0, err
+	}
+	return res.Num, nil
 }
