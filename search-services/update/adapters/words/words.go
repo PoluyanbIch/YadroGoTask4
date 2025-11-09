@@ -2,7 +2,6 @@ package words
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"google.golang.org/grpc"
@@ -27,7 +26,12 @@ func NewClient(address string, log *slog.Logger) (*Client, error) {
 }
 
 func (c Client) Norm(ctx context.Context, phrase string) ([]string, error) {
-	return nil, errors.New("implement me")
+	wr, err := c.client.Norm(ctx, &wordspb.WordsRequest{Phrase: phrase})
+	if err != nil {
+		c.log.Error("words norm", "error", err)
+		return nil, err
+	}
+	return wr.Words, nil
 }
 
 func (c Client) Ping(ctx context.Context) error {
