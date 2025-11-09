@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -30,17 +29,56 @@ func New(log *slog.Logger, address string) (*DB, error) {
 }
 
 func (db *DB) Add(ctx context.Context, comics core.Comics) error {
+	query := `
+			INSERT INTO comics (id, url, words)
+			VALUES ($1, $2, $3)
+	`
+	_, err := db.conn.ExecContext(ctx, query, comics.ID, comics.URL, comics.Words)
+	if err != nil {
+		db.log.Error("db.add error", "error", err)
+		return err
+	}
 	return nil
 }
 
 func (db *DB) Stats(ctx context.Context) (core.DBStats, error) {
-	return core.DBStats{}, errors.New("implement me")
+	query := `
+			SELECT
+				COUNT(*) as comics_fetched,
+				SUM(jsonb_object_length(words)) as words_total,
+				COUNT(DISTINCT jsonb_object_keys(words)) as words_unique
+			FROM comics
+	`
+	var res struct {
+		WordsTotal    int `db:"words_total"`
+		WordsUnique   int `db:"words_unique"`
+		ComicsFetched int `db:"comics_fetched"`
+	}
+	if err := db.conn.GetContext(ctx, &res, query); err != nil {
+		return core.DBStats{}, err
+	}
+	return core.DBStats{
+		WordsTotal:    res.WordsTotal,
+		WordsUnique:   res.WordsUnique,
+		ComicsFetched: res.ComicsFetched,
+	}, nil
 }
 
 func (db *DB) IDs(ctx context.Context) ([]int, error) {
-	return nil, errors.New("implement me")
+	var ids []int
+	query := "SELECT id FROM comics ORDER BY id"
+	if err := db.conn.SelectContext(ctx, &ids, query); err != nil {
+		db.log.Error("failed to get comics IDs", "error", err)
+		return nil, err
+	}
+	return ids, nil
 }
 
 func (db *DB) Drop(ctx context.Context) error {
-	return errors.New("implement me")
+	if _, err := db.conn.ExecContext(ctx, "DROP TABLE IF EXISTS comics"); err != nil {
+		db.log.Error("failed to drop comics table", "error", err)
+		return err
+	}
+	db.log.Info("comics table dropped successfully")
+	return nil
 }
