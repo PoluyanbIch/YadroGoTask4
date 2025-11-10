@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"time"
 
-	"yadro.com/course/api/adapters/words"
 	"yadro.com/course/api/config"
 	"yadro.com/course/api/core"
 )
@@ -16,9 +14,9 @@ type PingResponse struct {
 	Replies map[string]string `json:"replies"`
 }
 
-func NewPingHandler(log *slog.Logger, pingers map[string]core.Pinger, timeout time.Duration) http.HandlerFunc {
+func NewPingHandler(log *slog.Logger, pingers map[string]core.Pinger, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
 		defer cancel()
 
 		replies := make(map[string]string)
@@ -43,7 +41,7 @@ func NewPingHandler(log *slog.Logger, pingers map[string]core.Pinger, timeout ti
 	}
 }
 
-func NewWordsHandler(log *slog.Logger, cfg config.Config, wordsClient *words.Client) http.HandlerFunc {
+func NewWordsHandler(log *slog.Logger, norm core.Normalizer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		phrase := r.URL.Query().Get("phrase")
 		if phrase == "" {
@@ -54,9 +52,9 @@ func NewWordsHandler(log *slog.Logger, cfg config.Config, wordsClient *words.Cli
 		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
 		defer cancel()
 
-		wordsList, err := wordsClient.Norm(ctx, phrase)
+		wordsList, err := norm.Norm(ctx, phrase)
 		if err != nil {
-			handleNormError(w, log, err)
+			handleError(w, err)
 			return
 		}
 
@@ -73,34 +71,92 @@ func NewWordsHandler(log *slog.Logger, cfg config.Config, wordsClient *words.Cli
 	}
 }
 
-func handleNormError(w http.ResponseWriter, log *slog.Logger, err error) {
+func handleError(w http.ResponseWriter, err error) {
 	switch err {
 	case core.ErrBadArguments:
 		http.Error(w, "phrase too large", http.StatusBadRequest)
 	case core.ErrServiceUnavailable:
 		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 	default:
-		log.Error("failed to normalize phrase", "error", err)
 		http.Error(w, "internal service error", http.StatusInternalServerError)
 	}
 }
 
-func NewUpdateHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc {
+func NewUpdateHandler(log *slog.Logger, updater core.Updater, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
+		defer cancel()
+
+		status, err := updater.Status(ctx)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+
+		if status == core.StatusUpdateRunning {
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+
+		if err := updater.Update(ctx); err != nil {
+			handleError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func NewUpdateStatsHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc {
+func NewUpdateStatsHandler(log *slog.Logger, updater core.Updater, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
+		defer cancel()
+
+		stats, err := updater.Stats(ctx)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+
+		w.Header().Set("Content-type", "application/json")
+		if err := json.NewEncoder(w).Encode(stats); err != nil {
+			log.Error("failed to write response", "error", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
 	}
 }
 
-func NewUpdateStatusHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc {
+func NewUpdateStatusHandler(log *slog.Logger, updater core.Updater, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
+		defer cancel()
+
+		status, err := updater.Status(ctx)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+
+		reply := map[string]string{
+			"status": string(status),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(reply); err != nil {
+			log.Error("cannot encode status reply")
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
 	}
 }
 
-func NewDropHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc {
+func NewDropHandler(log *slog.Logger, updater core.Updater, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
+		defer cancel()
+
+		if err := updater.Drop(ctx); err != nil {
+			handleError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
