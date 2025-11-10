@@ -48,7 +48,7 @@ services:
       - UPDATE_ADDRESS=:8080
       - DB_ADDRESS=postgres://postgres:password@postgres:5432/postgres
       - XKCD_URL=https://xkcd.com
-      - XKCD_CONCURRENCY=10
+      - XKCD_CONCURRENCY=2
       - WORDS_ADDRESS=words:8080
     depends_on:
       postgres:

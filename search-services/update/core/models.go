@@ -21,7 +21,7 @@ type ServiceStats struct {
 type Comics struct {
 	ID    int
 	URL   string
-	Words []string
+	Words map[string]int
 }
 
 type XKCDInfo struct {

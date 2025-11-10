@@ -39,7 +39,11 @@ func (c Client) Get(ctx context.Context, id int) (core.XKCDInfo, error) {
 	if err != nil {
 		return core.XKCDInfo{}, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			c.log.Error("closing body error", "error", err)
+		}
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return core.XKCDInfo{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
@@ -69,7 +73,11 @@ func (c Client) LastID(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			c.log.Error("closing body error", "error", err)
+		}
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}

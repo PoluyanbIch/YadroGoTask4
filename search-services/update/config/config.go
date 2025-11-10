@@ -10,7 +10,7 @@ import (
 type XKCD struct {
 	URL         string        `yaml:"url" env:"XKCD_URL" env-default:"xkcd.com"`
 	Concurrency int           `yaml:"concurrency" env:"XKCD_CONCURRENCY" env-default:"1"`
-	Timeout     time.Duration `yaml:"timeout" env:"XKCD_TIMEOUT" env-default:"10s"`
+	Timeout     time.Duration `yaml:"timeout" env:"XKCD_TIMEOUT" env-default:"60s"`
 	CheckPeriod time.Duration `yaml:"check_period" env:"XKCD_CHECK_PERIOD" env-default:"1h"`
 }
 

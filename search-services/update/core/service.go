@@ -71,10 +71,14 @@ func (s *Service) Update(ctx context.Context) (err error) {
 					s.log.Error("words.norm error", "error", err)
 					return
 				}
+				wordsMap := make(map[string]int)
+				for _, w := range words {
+					wordsMap[w]++
+				}
 				comics := Comics{
 					ID:    xkcdComics.ID,
 					URL:   xkcdComics.URL,
-					Words: words,
+					Words: wordsMap,
 				}
 
 				comicsChan <- comics
