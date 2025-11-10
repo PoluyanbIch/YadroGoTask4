@@ -2,12 +2,11 @@ package update
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"yadro.com/course/api/core"
 	updatepb "yadro.com/course/proto/update"
 )
@@ -29,22 +28,55 @@ func NewClient(address string, log *slog.Logger) (*Client, error) {
 }
 
 func (c Client) Ping(ctx context.Context) error {
-	return fmt.Errorf("implement me")
+	_, err := c.client.Ping(ctx, &emptypb.Empty{})
+	if err != nil {
+		return core.ErrServiceUnavailable
+	}
+	return nil
 }
 
 func (c Client) Status(ctx context.Context) (core.UpdateStatus, error) {
-	return core.StatusUpdateUnknown, errors.New("unknown status")
+	resp, err := c.client.Status(ctx, &emptypb.Empty{})
+	if err != nil {
+		c.log.Error("status call failed", "error", err)
+		return core.StatusUpdateUnknown, core.ErrInternal
+	}
+	switch resp.Status {
+	case updatepb.Status_STATUS_IDLE:
+		return core.StatusUpdateIdle, nil
+	case updatepb.Status_STATUS_RUNNING:
+		return core.StatusUpdateRunning, nil
+	default:
+		return core.StatusUpdateUnknown, nil
+	}
 }
 
 func (c Client) Stats(ctx context.Context) (core.UpdateStats, error) {
-	return core.UpdateStats{}, nil
-
+	resp, err := c.client.Stats(ctx, &emptypb.Empty{})
+	if err != nil {
+		c.log.Error("stats call failed", "error", err)
+		return core.UpdateStats{}, core.ErrInternal
+	}
+	return core.UpdateStats{
+		WordsTotal:    int(resp.WordsTotal),
+		WordsUnique:   int(resp.WordsUnique),
+		ComicsFetched: int(resp.ComicsFetched),
+		ComicsTotal:   int(resp.ComicsTotal),
+	}, nil
 }
 
 func (c Client) Update(ctx context.Context) error {
-	return fmt.Errorf("implement me")
+	if _, err := c.client.Update(ctx, &emptypb.Empty{}); err != nil {
+		c.log.Error("update call failed", "error", err)
+		return core.ErrInternal
+	}
+	return nil
 }
 
 func (c Client) Drop(ctx context.Context) error {
-	return fmt.Errorf("implement me")
+	if _, err := c.client.Drop(ctx, &emptypb.Empty{}); err != nil {
+		c.log.Error("drop call failed", "error", err)
+		return core.ErrInternal
+	}
+	return nil
 }
