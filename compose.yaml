@@ -72,7 +72,7 @@ services:
     environment:
       POSTGRES_PASSWORD: password
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql
     healthcheck:
       test: [ "CMD", "pg_isready" ]
       interval: 10s
