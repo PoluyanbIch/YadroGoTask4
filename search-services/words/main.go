@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	maxPhraseLen    = 4096
+	maxPhraseLen    = 4096 * 100
 	maxShutdownTime = 5 * time.Second
 )
 
@@ -48,7 +48,7 @@ func (s *server) Norm(_ context.Context, in *wordspb.WordsRequest) (*wordspb.Wor
 }
 
 type Config struct {
-	Port string `yaml:"port" env:"WORDS_GRPC_PORT" env-default:"11111"`
+	Port string `yaml:"port" env:"WORDS_GRPC_PORT" env-default:"8080"`
 }
 
 func main() {

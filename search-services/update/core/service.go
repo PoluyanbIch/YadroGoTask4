@@ -110,7 +110,7 @@ func (s *Service) Stats(ctx context.Context) (ServiceStats, error) {
 	}
 	return ServiceStats{
 		DBStats:     dbStats,
-		ComicsTotal: comicsTotal,
+		ComicsTotal: comicsTotal - 1,
 	}, nil
 }
 

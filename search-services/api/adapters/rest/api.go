@@ -106,6 +106,13 @@ func NewUpdateHandler(log *slog.Logger, updater core.Updater, cfg config.Config)
 	}
 }
 
+type ServiceStats struct {
+	WordsTotal    int `json:"words_total"`
+	WordsUnique   int `json:"words_unique"`
+	ComicsFetched int `json:"comics_fetched"`
+	ComicsTotal   int `json:"comics_total"`
+}
+
 func NewUpdateStatsHandler(log *slog.Logger, updater core.Updater, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
@@ -117,8 +124,15 @@ func NewUpdateStatsHandler(log *slog.Logger, updater core.Updater, cfg config.Co
 			return
 		}
 
+		statsJson := ServiceStats{
+			WordsTotal:    stats.WordsTotal,
+			WordsUnique:   stats.WordsUnique,
+			ComicsFetched: stats.ComicsFetched,
+			ComicsTotal:   stats.ComicsTotal,
+		}
+
 		w.Header().Set("Content-type", "application/json")
-		if err := json.NewEncoder(w).Encode(stats); err != nil {
+		if err := json.NewEncoder(w).Encode(statsJson); err != nil {
 			log.Error("failed to write response", "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}

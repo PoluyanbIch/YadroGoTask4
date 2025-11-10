@@ -88,7 +88,7 @@ func (db *DB) IDs(ctx context.Context) ([]int, error) {
 }
 
 func (db *DB) Drop(ctx context.Context) error {
-	if _, err := db.conn.ExecContext(ctx, "DROP TABLE IF EXISTS comics"); err != nil {
+	if _, err := db.conn.ExecContext(ctx, "TRUNCATE TABLE comics"); err != nil {
 		db.log.Error("failed to drop comics table", "error", err)
 		return err
 	}
