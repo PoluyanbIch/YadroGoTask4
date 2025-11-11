@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +36,9 @@ func (s *Server) Status(ctx context.Context, _ *emptypb.Empty) (*updatepb.Status
 
 func (s *Server) Update(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
 	if err := s.service.Update(ctx); err != nil {
+		if errors.Is(err, core.ErrUpdateInProgress) {
+			return nil, status.Error(codes.AlreadyExists, "update already in progress")
+		}
 		return nil, status.Errorf(codes.Internal, "update error: %v", err)
 	}
 	return nil, nil

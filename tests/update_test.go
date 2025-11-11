@@ -31,7 +31,6 @@ func prepare(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	updateStats := stats(t)
-	fmt.Println(updateStats)
 	require.Equal(t, 0, updateStats.ComicsFetched)
 	require.True(t, updateStats.ComicsTotal > 3000, "there are more than 3000 comics in XKCD")
 	require.Equal(t, 0, updateStats.WordsTotal)

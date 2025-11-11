@@ -5,7 +5,9 @@ import (
 	"log/slog"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"yadro.com/course/api/core"
 	updatepb "yadro.com/course/proto/update"
@@ -67,6 +69,9 @@ func (c Client) Stats(ctx context.Context) (core.UpdateStats, error) {
 
 func (c Client) Update(ctx context.Context) error {
 	if _, err := c.client.Update(ctx, &emptypb.Empty{}); err != nil {
+		if status.Code(err) == codes.AlreadyExists {
+			return core.ErrUpdateInProgress
+		}
 		c.log.Error("update call failed", "error", err)
 		return core.ErrInternal
 	}

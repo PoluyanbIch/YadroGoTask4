@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
+	"sync/atomic"
 )
 
 type Service struct {
@@ -14,7 +15,8 @@ type Service struct {
 	xkcd        XKCD
 	words       Words
 	concurrency int
-	status      ServiceStatus
+	status      atomic.Value
+	isUpdating  int32
 }
 
 func NewService(
@@ -23,19 +25,26 @@ func NewService(
 	if concurrency < 1 {
 		return nil, fmt.Errorf("wrong concurrency specified: %d", concurrency)
 	}
-	return &Service{
+	s := &Service{
 		log:         log,
 		db:          db,
 		xkcd:        xkcd,
 		words:       words,
 		concurrency: concurrency,
-		status:      StatusIdle,
-	}, nil
+		isUpdating:  0,
+	}
+	s.status.Store(StatusIdle)
+	return s, nil
 }
 
 func (s *Service) Update(ctx context.Context) (err error) {
-	s.status = StatusRunning
-	defer func() { s.status = StatusIdle }()
+	if !atomic.CompareAndSwapInt32(&s.isUpdating, 0, 1) {
+		return ErrUpdateInProgress
+	}
+	defer atomic.StoreInt32(&s.isUpdating, 0)
+	s.status.Store(StatusRunning)
+
+	defer func() { s.status.Store(StatusIdle) }()
 	var ids []int
 	existIDs, err := s.db.IDs(ctx)
 	if err != nil {
@@ -58,9 +67,7 @@ func (s *Service) Update(ctx context.Context) (err error) {
 		var wg sync.WaitGroup
 		comicsChan := make(chan Comics, s.concurrency)
 		for _, id := range ids[i:end] {
-			wg.Add(1)
-			go func(id int) {
-				defer wg.Done()
+			wg.Go(func() {
 				xkcdComics, err := s.xkcd.Get(ctx, id)
 				if err != nil {
 					s.log.Error("xkcd.get error", "error", err)
@@ -82,7 +89,7 @@ func (s *Service) Update(ctx context.Context) (err error) {
 				}
 
 				comicsChan <- comics
-			}(id)
+			})
 		}
 		go func() {
 			wg.Wait()
@@ -115,7 +122,7 @@ func (s *Service) Stats(ctx context.Context) (ServiceStats, error) {
 }
 
 func (s *Service) Status(ctx context.Context) ServiceStatus {
-	return s.status
+	return s.status.Load().(ServiceStatus)
 }
 
 func (s *Service) Drop(ctx context.Context) error {

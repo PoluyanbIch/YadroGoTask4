@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -72,10 +73,12 @@ func NewWordsHandler(log *slog.Logger, norm core.Normalizer, cfg config.Config) 
 }
 
 func handleError(w http.ResponseWriter, err error) {
-	switch err {
-	case core.ErrBadArguments:
+	switch {
+	case errors.Is(err, core.ErrUpdateInProgress):
+		w.WriteHeader(http.StatusAccepted)
+	case errors.Is(err, core.ErrBadArguments):
 		http.Error(w, "phrase too large", http.StatusBadRequest)
-	case core.ErrServiceUnavailable:
+	case errors.Is(err, core.ErrServiceUnavailable):
 		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 	default:
 		http.Error(w, "internal service error", http.StatusInternalServerError)
@@ -86,17 +89,6 @@ func NewUpdateHandler(log *slog.Logger, updater core.Updater, cfg config.Config)
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), cfg.HTTPConfig.Timeout)
 		defer cancel()
-
-		status, err := updater.Status(ctx)
-		if err != nil {
-			handleError(w, err)
-			return
-		}
-
-		if status == core.StatusUpdateRunning {
-			w.WriteHeader(http.StatusAccepted)
-			return
-		}
 
 		if err := updater.Update(ctx); err != nil {
 			handleError(w, err)
